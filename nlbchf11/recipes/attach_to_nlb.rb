@@ -29,6 +29,6 @@ bash 'NLB_Register' do
     EC2_INSTANCE_ID="`wget -q -O - http://169.254.169.254/latest/meta-data/instance-id || die \"wget instance-id has failed: $?\"`"
     EC2_AVAIL_ZONE="`wget -q -O - http://169.254.169.254/latest/meta-data/placement/availability-zone || die \"wget availability-zone has failed: $?\"`"
     REGION=`curl http://169.254.169.254/latest/dynamic/instance-identity/document|grep region|awk -F\" '{print $4}'`
-    aws elbv2 register-targets --target-group-arn #{target_group_arn} --targets Id=$EC2_INSTANCE_ID --region $REGION
+    aws elbv2 register-targets --target-group-arn #{target_group_arn} --targets Id=$EC2_INSTANCE_ID --region us-west-2
     EOH
 end
