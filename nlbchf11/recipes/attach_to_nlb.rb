@@ -15,36 +15,16 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 #
-chef_gem "aws-sdk-core" do
-  version "~> 2.6"
-  action :install
-end
 
-ruby_block "attach_to_NLB" do
-  block do
-    require "aws-sdk-core"
+package 'aws-cli'
 
-    raise "nlb_helper block not specified in layer JSON" if node[:nlb_helper].nil?
-    raise "Target group ARN not specified in layer JSON" if node[:nlb_helper][:target_group_arn].nil?
+package 'wget'
 
-    stack = search("aws_opsworks_stack").first
-    instance = search("aws_opsworks_instance", "self:true").first
+target_group_arn = node[:nlb_helper][:target_group_arn]
 
-    stack_region = stack[:region]
-    ec2_instance_id = instance[:ec2_instance_id]
-    target_group_arn = node[:nlb_helper][:target_group_arn]
-
-    Chef::Log.info("Creating ELB client in region #{stack_region}")
-    client = Aws::ElasticLoadBalancingV2::Client.new(region: stack_region)
-
-    Chef::Log.info("Registering EC2 instance #{ec2_instance_id} with target group #{target_group_arn}")
-
-    target_to_attach = {
-      target_group_arn: target_group_arn,
-      targets: [{ id: ec2_instance_id }]
-    }
-
-    client.register_targets(target_to_attach)
-  end
-  action :run
+bash 'NLB_Register' do
+  code <<-EOH
+    EC2_INSTANCE_ID="`wget -q -O - http://169.254.169.254/latest/meta-data/instance-id || die \"wget instance-id has failed: $?\"`"
+    EC2_REGION="`echo \"$EC2_AVAIL_ZONE\" | sed -e 's:\([0-9][0-9]*\)[a-z]*\$:\\1:'`"
+   aws elbv2 register-targets --target-group-arn $target_group_arn --targets Id=$EC2_INSTANCE_ID --region $EC2_REGION
 end
